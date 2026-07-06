@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-success: #16A34A;
+  --color-danger: #DC2626;
+  --color-text-light: var(--foreground);
+  --color-bg-light: var(--background);
+  --color-bg-dark: var(--background);
+}
+
+:root {
+  --background: #FAF9F6;
+  --foreground: #121212;
+  --primary: #9C6C38;
+  --primary-dark: #7A5228;
+  --secondary: #1F2937;
+  --accent: #B8834A;
+  --border-color: rgba(18, 18, 18, 0.08);
+  --glass-bg: rgba(250, 249, 246, 0.85);
+  --glass-border: rgba(156, 108, 56, 0.15);
+}
+
+.dark {
+  --background: #0E0E0E;
+  --foreground: #F5F5F3;
+  --primary: #C59F73;
+  --primary-dark: #A57E52;
+  --secondary: #1C1C1E;
+  --accent: #E5C19A;
+  --border-color: rgba(245, 245, 243, 0.08);
+  --glass-bg: rgba(14, 14, 14, 0.85);
+  --glass-border: rgba(197, 159, 115, 0.15);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Glassmorphism */
+.glass-luxury {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.04);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(184, 131, 74, 0.4); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #B8834A; }
+
+/* Skeleton shimmer */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(184, 131, 74, 0.04) 25%,
+    rgba(184, 131, 74, 0.1) 50%,
+    rgba(184, 131, 74, 0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: loading-shimmer 1.6s infinite;
+}
+
+@keyframes loading-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Wipe animation */
+@keyframes wipe-slider {
+  0% { transform: scale(0.97); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-wipe { animation: wipe-slider 0.4s ease-out forwards; }
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid #B8834A;
+  outline-offset: 2px;
+}
+
+/* Font utility classes — matching Tailwind's font-* naming convention */
+.font-playfair {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+.font-sans {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
