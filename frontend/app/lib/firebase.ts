@@ -21,20 +21,19 @@ if (
   !firebaseConfig.authDomain ||
   !firebaseConfig.projectId
 ) {
-  throw new Error(
-    'CRITICAL CONFIGURATION ERROR: Firebase Client SDK environment variables are missing. ' +
-    'Please set NEXT_PUBLIC_FIREBASE_API_KEY, NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, and NEXT_PUBLIC_FIREBASE_PROJECT_ID in your .env file.'
+  console.warn(
+    'WARNING: Firebase Client SDK environment variables are missing. ' +
+    'Please set NEXT_PUBLIC_FIREBASE_API_KEY, NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, and NEXT_PUBLIC_FIREBASE_PROJECT_ID.'
   );
-}
-
-try {
-  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-  auth = getAuth(app);
-  isFirebaseAvailable = true;
-  console.log('Firebase client SDK initialized successfully.');
-} catch (error) {
-  console.error('Firebase client SDK initialization failed:', error);
-  throw error;
+} else {
+  try {
+    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    auth = getAuth(app);
+    isFirebaseAvailable = true;
+    console.log('Firebase client SDK initialized successfully.');
+  } catch (error) {
+    console.error('Firebase client SDK initialization failed:', error);
+  }
 }
 
 export { auth, isFirebaseAvailable };
