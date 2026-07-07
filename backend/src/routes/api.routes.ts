@@ -14,7 +14,7 @@ export interface AuthRequest extends Request {
   };
 }
 
-// Middleware: Authenticate user via Firebase Token or Mock Auth headers
+// Middleware: Authenticate user via Firebase Token
 export async function authenticateToken(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -24,71 +24,35 @@ export async function authenticateToken(req: AuthRequest, res: Response, next: N
     return;
   }
 
-  // 1. Check for Mock Tokens
-  if (token.startsWith('mock-')) {
-    const uid = token.replace('mock-', '');
-    let userProfile = await databaseService.getUser(uid);
-    if (!userProfile) {
-      // Create profile dynamically to avoid auth failures in mock mode
-      userProfile = await databaseService.createUser({
-        uid,
-        email: uid === 'admin-uid' ? 'admin@decorai.com' : 'client@decorai.com',
-        displayName: uid === 'admin-uid' ? 'DecorAI Administrator' : 'Alexander Sterling',
-        role: uid === 'admin-uid' ? 'admin' : 'user'
-      });
-    }
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    const userProfile = await databaseService.getUser(decodedToken.uid);
     
+    // If user does not exist in Firestore yet, create them dynamically
+    let role: 'admin' | 'user' = 'user';
     if (userProfile) {
-      req.user = {
-        uid: userProfile.uid,
-        email: userProfile.email,
-        role: userProfile.role
-      };
-      next();
-      return;
-    }
-  }
-
-  // 2. Validate Firebase Live Token
-  if (!databaseService.isMock) {
-    try {
-      const decodedToken = await admin.auth().verifyIdToken(token);
-      const userProfile = await databaseService.getUser(decodedToken.uid);
-      
-      // If user does not exist in Firestore yet, create them dynamically
-      let role: 'admin' | 'user' = 'user';
-      if (userProfile) {
-        role = userProfile.role;
-      } else {
-        await databaseService.createUser({
-          uid: decodedToken.uid,
-          email: decodedToken.email || '',
-          displayName: decodedToken.name || decodedToken.email?.split('@')[0] || 'User',
-          photoURL: decodedToken.picture || ''
-        });
-      }
-
-      req.user = {
+      role = userProfile.role;
+    } else {
+      await databaseService.createUser({
         uid: decodedToken.uid,
         email: decodedToken.email || '',
-        role
-      };
-      next();
-      return;
-    } catch (error) {
-      console.error('Firebase token verification failed:', error);
-      res.status(403).json({ error: 'Invalid or expired access token' });
-      return;
+        displayName: decodedToken.name || decodedToken.email?.split('@')[0] || 'User',
+        photoURL: decodedToken.picture || ''
+      });
     }
-  }
 
-  // Fallback if live is active but mock token received, or vice versa
-  req.user = {
-    uid: 'user-uid',
-    email: 'client@decorai.com',
-    role: 'user'
-  };
-  next();
+    req.user = {
+      uid: decodedToken.uid,
+      email: decodedToken.email || '',
+      role
+    };
+    next();
+    return;
+  } catch (error) {
+    console.error('Firebase token verification failed:', error);
+    res.status(403).json({ error: 'Invalid or expired access token' });
+    return;
+  }
 }
 
 // Middleware: Admin role guard

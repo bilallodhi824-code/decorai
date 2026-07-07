@@ -16,21 +16,25 @@ let isFirebaseAvailable = false;
 
 // Check if configuration is present
 if (
-  firebaseConfig.apiKey &&
-  firebaseConfig.apiKey.trim() !== '' &&
-  firebaseConfig.authDomain &&
-  firebaseConfig.projectId
+  !firebaseConfig.apiKey ||
+  firebaseConfig.apiKey.trim() === '' ||
+  !firebaseConfig.authDomain ||
+  !firebaseConfig.projectId
 ) {
-  try {
-    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-    auth = getAuth(app);
-    isFirebaseAvailable = true;
-    console.log('Firebase client SDK initialized successfully.');
-  } catch (error) {
-    console.error('Firebase client SDK initialization failed:', error);
-  }
-} else {
-  console.log('Firebase credentials missing. Frontend running in client-side Mock Auth Mode.');
+  throw new Error(
+    'CRITICAL CONFIGURATION ERROR: Firebase Client SDK environment variables are missing. ' +
+    'Please set NEXT_PUBLIC_FIREBASE_API_KEY, NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, and NEXT_PUBLIC_FIREBASE_PROJECT_ID in your .env file.'
+  );
+}
+
+try {
+  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+  auth = getAuth(app);
+  isFirebaseAvailable = true;
+  console.log('Firebase client SDK initialized successfully.');
+} catch (error) {
+  console.error('Firebase client SDK initialization failed:', error);
+  throw error;
 }
 
 export { auth, isFirebaseAvailable };

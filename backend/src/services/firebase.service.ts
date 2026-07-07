@@ -1013,6 +1013,20 @@ class MockDatabase implements IDatabase {
     });
   }
 
+  public getRawData() {
+    return {
+      users: Array.from(this.users.values()),
+      projects: Array.from(this.projects.values()),
+      aiDesigns: Array.from(this.aiDesigns.values()),
+      feedbacks: this.feedbacks,
+      subscriptions: this.subscriptions,
+      transactions: this.transactions,
+      notifications: this.notifications,
+      blogs: this.blogs,
+      savedDesigns: this.savedDesigns
+    };
+  }
+
   // --- Users API ---
   async getUser(uid: string): Promise<UserProfile | null> {
     return this.users.get(uid) || null;
@@ -1197,240 +1211,246 @@ let databaseService: IDatabase;
 
 const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 
-if (serviceAccountEnv && serviceAccountEnv.trim() !== '') {
-  try {
-    const serviceAccount = JSON.parse(serviceAccountEnv);
-    if (admin.apps.length === 0) {
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-      });
-    }
-    
-    const firestore = admin.firestore();
-    firestore.settings({ ignoreUndefinedProperties: true });
-
-    // Firebase Admin Firestore DB Implementation
-    class FirebaseDatabase implements IDatabase {
-      public isMock = false;
-
-      // Wrap Firestore helper
-      private async getDocData<T>(coll: string, docId: string): Promise<T | null> {
-        const snap = await firestore.collection(coll).doc(docId).get();
-        return snap.exists ? (snap.data() as T) : null;
-      }
-
-      async getUser(uid: string): Promise<UserProfile | null> {
-        return this.getDocData<UserProfile>('users', uid);
-      }
-      async getAllUsers(): Promise<UserProfile[]> {
-        const snap = await firestore.collection('users').get();
-        return snap.docs.map(doc => doc.data() as UserProfile);
-      }
-      async createUser(profile: Partial<UserProfile> & { uid: string; email: string }): Promise<UserProfile> {
-        const docRef = firestore.collection('users').doc(profile.uid);
-        const data: UserProfile = {
-          uid: profile.uid,
-          email: profile.email,
-          displayName: profile.displayName || profile.email.split('@')[0],
-          photoURL: profile.photoURL || '',
-          role: profile.role || 'user',
-          createdAt: new Date().toISOString(),
-          subscription: profile.subscription || { plan: 'free', status: 'active', currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() }
-        };
-        await docRef.set(data, { merge: true });
-        return data;
-      }
-      async updateUser(uid: string, data: Partial<UserProfile>): Promise<UserProfile> {
-        const docRef = firestore.collection('users').doc(uid);
-        await docRef.update(data);
-        const updated = await docRef.get();
-        return updated.data() as UserProfile;
-      }
-
-      async getProjects(userId?: string): Promise<Project[]> {
-        let query: admin.firestore.Query = firestore.collection('projects');
-        if (userId) {
-          query = query.where('userId', '==', userId);
-        }
-        const snap = await query.get();
-        return snap.docs.map(doc => doc.data() as Project);
-      }
-      async getProject(id: string): Promise<Project | null> {
-        return this.getDocData<Project>('projects', id);
-      }
-      async createProject(project: Omit<Project, 'id' | 'createdAt'>): Promise<Project> {
-        const id = uuidv4();
-        const docRef = firestore.collection('projects').doc(id);
-        const data = { ...project, id, createdAt: new Date().toISOString() };
-        await docRef.set(data);
-        return data;
-      }
-      async deleteProject(id: string): Promise<boolean> {
-        await firestore.collection('projects').doc(id).delete();
-        return true;
-      }
-
-      async getAiDesigns(userId?: string): Promise<AIDesign[]> {
-        let query: admin.firestore.Query = firestore.collection('ai_designs');
-        if (userId) {
-          query = query.where('userId', '==', userId);
-        }
-        const snap = await query.get();
-        return snap.docs.map(doc => doc.data() as AIDesign);
-      }
-      async createAiDesign(design: Omit<AIDesign, 'id' | 'createdAt'>): Promise<AIDesign> {
-        const id = uuidv4();
-        const docRef = firestore.collection('ai_designs').doc(id);
-        const data = { ...design, id, createdAt: new Date().toISOString() };
-        await docRef.set(data);
-        return data;
-      }
-
-      async getFeedbacks(): Promise<Feedback[]> {
-        const snap = await firestore.collection('feedbacks').orderBy('createdAt', 'desc').get();
-        return snap.docs.map(doc => doc.data() as Feedback);
-      }
-      async createFeedback(feedback: Omit<Feedback, 'id' | 'createdAt'>): Promise<Feedback> {
-        const id = uuidv4();
-        const docRef = firestore.collection('feedbacks').doc(id);
-        const data = { ...feedback, id, createdAt: new Date().toISOString() };
-        await docRef.set(data);
-        return data;
-      }
-
-      async getSubscriptions(userId?: string): Promise<Subscription[]> {
-        let query: admin.firestore.Query = firestore.collection('subscriptions');
-        if (userId) {
-          query = query.where('userId', '==', userId);
-        }
-        const snap = await query.get();
-        return snap.docs.map(doc => doc.data() as Subscription);
-      }
-      async createSubscription(sub: Omit<Subscription, 'id'>): Promise<Subscription> {
-        const id = uuidv4();
-        const docRef = firestore.collection('subscriptions').doc(id);
-        const data = { ...sub, id };
-        await docRef.set(data);
-        // Sync user role
-        await firestore.collection('users').doc(sub.userId).update({
-          'subscription.plan': sub.plan,
-          'subscription.status': sub.status,
-          'subscription.currentPeriodEnd': sub.endAt
-        });
-        return data;
-      }
-      async getTransactions(userId?: string): Promise<Transaction[]> {
-        let query: admin.firestore.Query = firestore.collection('transactions');
-        if (userId) {
-          query = query.where('userId', '==', userId);
-        }
-        const snap = await query.get();
-        return snap.docs.map(doc => doc.data() as Transaction);
-      }
-      async createTransaction(tx: Omit<Transaction, 'id' | 'date'>): Promise<Transaction> {
-        const id = uuidv4();
-        const docRef = firestore.collection('transactions').doc(id);
-        const data = { ...tx, id, date: new Date().toISOString() };
-        await docRef.set(data);
-        return data;
-      }
-
-      async getNotifications(userId: string): Promise<Notification[]> {
-        const snap = await firestore.collection('notifications')
-          .where('userId', '==', userId)
-          .orderBy('createdAt', 'desc')
-          .get();
-        return snap.docs.map(doc => doc.data() as Notification);
-      }
-      async createNotification(notif: Omit<Notification, 'id' | 'createdAt' | 'read'>): Promise<Notification> {
-        const id = uuidv4();
-        const docRef = firestore.collection('notifications').doc(id);
-        const data = { ...notif, id, read: false, createdAt: new Date().toISOString() };
-        await docRef.set(data);
-        return data;
-      }
-      async markNotificationRead(id: string): Promise<boolean> {
-        await firestore.collection('notifications').doc(id).update({ read: true });
-        return true;
-      }
-
-      async getBlogs(): Promise<Blog[]> {
-        const snap = await firestore.collection('blogs').orderBy('createdAt', 'desc').get();
-        return snap.docs.map(doc => doc.data() as Blog);
-      }
-      async getBlogBySlug(slug: string): Promise<Blog | null> {
-        const snap = await firestore.collection('blogs').where('slug', '==', slug).limit(1).get();
-        if (snap.empty) return null;
-        return snap.docs[0].data() as Blog;
-      }
-      async createBlog(blog: Omit<Blog, 'id' | 'createdAt' | 'commentsCount'>): Promise<Blog> {
-        const id = uuidv4();
-        const docRef = firestore.collection('blogs').doc(id);
-        const data = { ...blog, id, commentsCount: 0, createdAt: new Date().toISOString() };
-        await docRef.set(data);
-        return data;
-      }
-      async updateBlog(id: string, blog: Partial<Blog>): Promise<Blog> {
-        const docRef = firestore.collection('blogs').doc(id);
-        await docRef.update(blog);
-        const snap = await docRef.get();
-        return snap.data() as Blog;
-      }
-      async deleteBlog(id: string): Promise<boolean> {
-        await firestore.collection('blogs').doc(id).delete();
-        return true;
-      }
-
-      async getSavedDesigns(userId: string): Promise<Project[]> {
-        const snap = await firestore.collection('saved_designs').where('userId', '==', userId).get();
-        const projectIds = snap.docs.map(doc => (doc.data() as SavedDesign).designId);
-        if (projectIds.length === 0) return [];
-        
-        // Batch get projects in Firestore (capped at 10, standard limit)
-        const projectsSnap = await firestore.collection('projects')
-          .where('id', 'in', projectIds.slice(0, 10))
-          .get();
-        return projectsSnap.docs.map(doc => doc.data() as Project);
-      }
-      async saveDesign(userId: string, designId: string): Promise<boolean> {
-        const snap = await firestore.collection('saved_designs')
-          .where('userId', '==', userId)
-          .where('designId', '==', designId)
-          .limit(1)
-          .get();
-        if (!snap.empty) return true;
-        
-        const id = uuidv4();
-        await firestore.collection('saved_designs').doc(id).set({
-          id,
-          userId,
-          designId,
-          savedAt: new Date().toISOString()
-        });
-        return true;
-      }
-      async unsaveDesign(userId: string, designId: string): Promise<boolean> {
-        const snap = await firestore.collection('saved_designs')
-          .where('userId', '==', userId)
-          .where('designId', '==', designId)
-          .get();
-        for (const doc of snap.docs) {
-          await doc.ref.delete();
-        }
-        return true;
-      }
-    }
-
-    databaseService = new FirebaseDatabase();
-    console.log('DecorAI initialized with real Firebase (Live Mode).');
-  } catch (error) {
-    console.error('Firebase Admin init failed. Falling back to MockDatabase.', error);
-    databaseService = new MockDatabase();
-  }
-} else {
-  databaseService = new MockDatabase();
-  console.log('DecorAI initialized with in-memory MockDatabase (Mock Mode).');
+if (!serviceAccountEnv || serviceAccountEnv.trim() === '') {
+  throw new Error(
+    'CRITICAL CONFIGURATION ERROR: FIREBASE_SERVICE_ACCOUNT_KEY environment variable is missing or empty. ' +
+    'The server requires a real Firebase connection to operate. Mock Database is disabled.'
+  );
 }
 
-export { databaseService };
+let FirebaseDatabaseClass: any;
+
+try {
+  const serviceAccount = JSON.parse(serviceAccountEnv);
+  if (admin.apps.length === 0) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    });
+  }
+  
+  const firestore = admin.firestore();
+  firestore.settings({ ignoreUndefinedProperties: true });
+
+  // Firebase Admin Firestore DB Implementation
+  class FirebaseDatabase implements IDatabase {
+    public isMock = false;
+
+    // Wrap Firestore helper
+    private async getDocData<T>(coll: string, docId: string): Promise<T | null> {
+      const snap = await firestore.collection(coll).doc(docId).get();
+      return snap.exists ? (snap.data() as T) : null;
+    }
+
+    async getUser(uid: string): Promise<UserProfile | null> {
+      return this.getDocData<UserProfile>('users', uid);
+    }
+    async getAllUsers(): Promise<UserProfile[]> {
+      const snap = await firestore.collection('users').get();
+      return snap.docs.map(doc => doc.data() as UserProfile);
+    }
+    async createUser(profile: Partial<UserProfile> & { uid: string; email: string }): Promise<UserProfile> {
+      const docRef = firestore.collection('users').doc(profile.uid);
+      const data: UserProfile = {
+        uid: profile.uid,
+        email: profile.email,
+        displayName: profile.displayName || profile.email.split('@')[0],
+        photoURL: profile.photoURL || '',
+        role: profile.role || 'user',
+        createdAt: new Date().toISOString(),
+        subscription: profile.subscription || { plan: 'free', status: 'active', currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() }
+      };
+      await docRef.set(data, { merge: true });
+      return data;
+    }
+    async updateUser(uid: string, data: Partial<UserProfile>): Promise<UserProfile> {
+      const docRef = firestore.collection('users').doc(uid);
+      await docRef.update(data);
+      const updated = await docRef.get();
+      return updated.data() as UserProfile;
+    }
+
+    async getProjects(userId?: string): Promise<Project[]> {
+      let query: admin.firestore.Query = firestore.collection('projects');
+      if (userId) {
+        query = query.where('userId', '==', userId);
+      }
+      const snap = await query.get();
+      return snap.docs.map(doc => doc.data() as Project);
+    }
+    async getProject(id: string): Promise<Project | null> {
+      return this.getDocData<Project>('projects', id);
+    }
+    async createProject(project: Omit<Project, 'id' | 'createdAt'>): Promise<Project> {
+      const id = uuidv4();
+      const docRef = firestore.collection('projects').doc(id);
+      const data = { ...project, id, createdAt: new Date().toISOString() };
+      await docRef.set(data);
+      return data;
+    }
+    async deleteProject(id: string): Promise<boolean> {
+      await firestore.collection('projects').doc(id).delete();
+      return true;
+    }
+
+    async getAiDesigns(userId?: string): Promise<AIDesign[]> {
+      let query: admin.firestore.Query = firestore.collection('ai_designs');
+      if (userId) {
+        query = query.where('userId', '==', userId);
+      }
+      const snap = await query.get();
+      return snap.docs.map(doc => doc.data() as AIDesign);
+    }
+    async createAiDesign(design: Omit<AIDesign, 'id' | 'createdAt'>): Promise<AIDesign> {
+      const id = uuidv4();
+      const docRef = firestore.collection('ai_designs').doc(id);
+      const data = { ...design, id, createdAt: new Date().toISOString() };
+      await docRef.set(data);
+      return data;
+    }
+
+    async getFeedbacks(): Promise<Feedback[]> {
+      const snap = await firestore.collection('feedbacks').orderBy('createdAt', 'desc').get();
+      return snap.docs.map(doc => doc.data() as Feedback);
+    }
+    async createFeedback(feedback: Omit<Feedback, 'id' | 'createdAt'>): Promise<Feedback> {
+      const id = uuidv4();
+      const docRef = firestore.collection('feedbacks').doc(id);
+      const data = { ...feedback, id, createdAt: new Date().toISOString() };
+      await docRef.set(data);
+      return data;
+    }
+
+    async getSubscriptions(userId?: string): Promise<Subscription[]> {
+      let query: admin.firestore.Query = firestore.collection('subscriptions');
+      if (userId) {
+        query = query.where('userId', '==', userId);
+      }
+      const snap = await query.get();
+      return snap.docs.map(doc => doc.data() as Subscription);
+    }
+    async createSubscription(sub: Omit<Subscription, 'id'>): Promise<Subscription> {
+      const id = uuidv4();
+      const docRef = firestore.collection('subscriptions').doc(id);
+      const data = { ...sub, id };
+      await docRef.set(data);
+      // Sync user role
+      await firestore.collection('users').doc(sub.userId).update({
+        'subscription.plan': sub.plan,
+        'subscription.status': sub.status,
+        'subscription.currentPeriodEnd': sub.endAt
+      });
+      return data;
+    }
+    async getTransactions(userId?: string): Promise<Transaction[]> {
+      let query: admin.firestore.Query = firestore.collection('transactions');
+      if (userId) {
+        query = query.where('userId', '==', userId);
+      }
+      const snap = await query.get();
+      return snap.docs.map(doc => doc.data() as Transaction);
+    }
+    async createTransaction(tx: Omit<Transaction, 'id' | 'date'>): Promise<Transaction> {
+      const id = uuidv4();
+      const docRef = firestore.collection('transactions').doc(id);
+      const data = { ...tx, id, date: new Date().toISOString() };
+      await docRef.set(data);
+      return data;
+    }
+
+    async getNotifications(userId: string): Promise<Notification[]> {
+      const snap = await firestore.collection('notifications')
+        .where('userId', '==', userId)
+        .orderBy('createdAt', 'desc')
+        .get();
+      return snap.docs.map(doc => doc.data() as Notification);
+    }
+    async createNotification(notif: Omit<Notification, 'id' | 'createdAt' | 'read'>): Promise<Notification> {
+      const id = uuidv4();
+      const docRef = firestore.collection('notifications').doc(id);
+      const data = { ...notif, id, read: false, createdAt: new Date().toISOString() };
+      await docRef.set(data);
+      return data;
+    }
+    async markNotificationRead(id: string): Promise<boolean> {
+      await firestore.collection('notifications').doc(id).update({ read: true });
+      return true;
+    }
+
+    async getBlogs(): Promise<Blog[]> {
+      const snap = await firestore.collection('blogs').orderBy('createdAt', 'desc').get();
+      return snap.docs.map(doc => doc.data() as Blog);
+    }
+    async getBlogBySlug(slug: string): Promise<Blog | null> {
+      const snap = await firestore.collection('blogs').where('slug', '==', slug).limit(1).get();
+      if (snap.empty) return null;
+      return snap.docs[0].data() as Blog;
+    }
+    async createBlog(blog: Omit<Blog, 'id' | 'createdAt' | 'commentsCount'>): Promise<Blog> {
+      const id = uuidv4();
+      const docRef = firestore.collection('blogs').doc(id);
+      const data = { ...blog, id, commentsCount: 0, createdAt: new Date().toISOString() };
+      await docRef.set(data);
+      return data;
+    }
+    async updateBlog(id: string, blog: Partial<Blog>): Promise<Blog> {
+      const docRef = firestore.collection('blogs').doc(id);
+      await docRef.update(blog);
+      const snap = await docRef.get();
+      return snap.data() as Blog;
+    }
+    async deleteBlog(id: string): Promise<boolean> {
+      await firestore.collection('blogs').doc(id).delete();
+      return true;
+    }
+
+    async getSavedDesigns(userId: string): Promise<Project[]> {
+      const snap = await firestore.collection('saved_designs').where('userId', '==', userId).get();
+      const projectIds = snap.docs.map(doc => (doc.data() as SavedDesign).designId);
+      if (projectIds.length === 0) return [];
+      
+      // Batch get projects in Firestore (capped at 10, standard limit)
+      const projectsSnap = await firestore.collection('projects')
+        .where('id', 'in', projectIds.slice(0, 10))
+        .get();
+      return projectsSnap.docs.map(doc => doc.data() as Project);
+    }
+    async saveDesign(userId: string, designId: string): Promise<boolean> {
+      const snap = await firestore.collection('saved_designs')
+        .where('userId', '==', userId)
+        .where('designId', '==', designId)
+        .limit(1)
+        .get();
+      if (!snap.empty) return true;
+      
+      const id = uuidv4();
+      await firestore.collection('saved_designs').doc(id).set({
+        id,
+        userId,
+        designId,
+        savedAt: new Date().toISOString()
+      });
+      return true;
+    }
+    async unsaveDesign(userId: string, designId: string): Promise<boolean> {
+      const snap = await firestore.collection('saved_designs')
+        .where('userId', '==', userId)
+        .where('designId', '==', designId)
+        .get();
+      for (const doc of snap.docs) {
+        await doc.ref.delete();
+      }
+      return true;
+    }
+  }
+
+  databaseService = new FirebaseDatabase();
+  FirebaseDatabaseClass = FirebaseDatabase;
+  console.log('DecorAI initialized with real Firebase (Live Mode).');
+} catch (error) {
+  console.error('Firebase Admin init failed. Could not start server.', error);
+  throw error;
+}
+
+export { databaseService, MockDatabase, FirebaseDatabaseClass };
+
