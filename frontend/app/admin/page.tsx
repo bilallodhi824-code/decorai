@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { apiGet, apiPost } from '../services/api';
+import { apiGet, apiPost, apiPatch } from '../services/api';
 import { useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Users, Folder, TrendingUp, BookOpen,
@@ -21,12 +21,13 @@ interface AnalyticsData {
   users: UserProfileSummary[];
   projects: ProjectSummary[];
 }
-type ActiveTab = 'overview' | 'users' | 'designs' | 'blog';
+type ActiveTab = 'overview' | 'users' | 'designs' | 'subscriptions' | 'blog';
 
 export default function AdminDashboardPage() {
   const { user, token, logout } = useAuth();
   const router = useRouter();
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -39,14 +40,33 @@ export default function AdminDashboardPage() {
   const [blogSuccess, setBlogSuccess] = useState(false);
   const [blogError, setBlogError] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
+  const [submittingApprove, setSubmittingApprove] = useState<string | null>(null);
 
   useEffect(() => { if (!loading && (!user || user.role !== 'admin')) router.push('/dashboard'); }, [user, loading, router]);
   useEffect(() => { if (token && user?.role === 'admin') fetchAnalytics(); else setLoading(false); }, [token, user]);
 
   const fetchAnalytics = async () => {
     setLoading(true);
-    try { const data = await apiGet<AnalyticsData>('/admin/analytics'); setAnalytics(data); }
+    try {
+      const data = await apiGet<AnalyticsData>('/admin/analytics');
+      setAnalytics(data);
+      const subData = await apiGet<any[]>('/admin/subscriptions');
+      setSubscriptions(subData);
+    }
     catch (err) { console.error(err); } finally { setLoading(false); }
+  };
+
+  const handleApproveSubscription = async (subId: string) => {
+    setSubmittingApprove(subId);
+    try {
+      await apiPatch(`/admin/subscriptions/${subId}/approve`, {});
+      await fetchAnalytics();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to approve subscription');
+    } finally {
+      setSubmittingApprove(null);
+    }
   };
 
   const handlePublishBlog = async (e: React.FormEvent) => {
@@ -66,6 +86,7 @@ export default function AdminDashboardPage() {
     { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="w-4 h-4" /> },
     { id: 'users', label: 'Users', icon: <Users className="w-4 h-4" /> },
     { id: 'designs', label: 'Design Logs', icon: <Folder className="w-4 h-4" /> },
+    { id: 'subscriptions', label: 'Subscriptions', icon: <DollarSign className="w-4 h-4" /> },
     { id: 'blog', label: 'Blog', icon: <BookOpen className="w-4 h-4" /> },
   ];
 
@@ -205,6 +226,80 @@ export default function AdminDashboardPage() {
                   {publishing ? <><RefreshCw className="w-4 h-4 animate-spin" />Publishing...</> : <><Plus className="w-4 h-4" />Publish Article</>}
                 </button>
               </form>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'subscriptions' && (
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">Subscriptions</h1>
+              <p className="text-sm text-foreground/50 mt-0.5">Manage user plan activations and billing approvals.</p>
+            </div>
+            <div className="rounded-xl border border-foreground/10 bg-background overflow-hidden">
+              <table className="w-full text-xs animate-fade-in">
+                <thead className="border-b border-foreground/10 bg-secondary/5 dark:bg-white/5">
+                  <tr className="text-foreground/40 font-semibold text-left">
+                    <th className="px-4 py-3">User</th>
+                    <th className="px-4 py-3">Plan</th>
+                    <th className="px-4 py-3">Price</th>
+                    <th className="px-4 py-3">Billing</th>
+                    <th className="px-4 py-3">Period</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-foreground/5">
+                  {subscriptions.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-8 text-center text-foreground/40">
+                        No subscription requests found.
+                      </td>
+                    </tr>
+                  ) : (
+                    subscriptions.map((sub) => {
+                      const userProfile = users.find((u) => u.uid === sub.userId);
+                      return (
+                        <tr key={sub.id} className="hover:bg-foreground/2 transition-colors">
+                          <td className="px-4 py-3 font-medium">
+                            <p>{userProfile?.displayName || 'User'}</p>
+                            <p className="text-[10px] text-foreground/45">{userProfile?.email || sub.userId}</p>
+                          </td>
+                          <td className="px-4 py-3 capitalize">{sub.plan}</td>
+                          <td className="px-4 py-3 font-semibold">${sub.price}</td>
+                          <td className="px-4 py-3 capitalize">{sub.billingCycle}</td>
+                          <td className="px-4 py-3 text-foreground/55">
+                            <p>Start: {new Date(sub.startAt).toLocaleDateString([], { dateStyle: 'short' })}</p>
+                            <p>End: {new Date(sub.endAt).toLocaleDateString([], { dateStyle: 'short' })}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
+                                sub.status === 'active'
+                                  ? 'bg-success/15 text-success'
+                                  : 'bg-warning/15 text-warning animate-pulse'
+                              }`}
+                            >
+                              {sub.status === 'active' ? 'Active' : 'Pending Approval'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {sub.status !== 'active' && (
+                              <button
+                                onClick={() => handleApproveSubscription(sub.id)}
+                                disabled={submittingApprove === sub.id}
+                                className="px-3.5 py-1.5 rounded-lg bg-primary hover:bg-primary-dark text-white font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                              >
+                                {submittingApprove === sub.id ? 'Approving...' : 'Approve'}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}

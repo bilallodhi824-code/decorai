@@ -36,7 +36,7 @@ function CustomDropdown({ label, value, options, onChange }: CustomDropdownProps
   }, []);
 
   return (
-    <div ref={dropdownRef} className="flex flex-col gap-1.5 relative z-20">
+    <div ref={dropdownRef} className={`flex flex-col gap-1.5 relative ${isOpen ? 'z-40' : 'z-20'}`}>
       <label className="font-semibold text-foreground/85">{label}</label>
       <button
         type="button"
@@ -54,7 +54,7 @@ function CustomDropdown({ label, value, options, onChange }: CustomDropdownProps
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
-            className="absolute top-[100%] left-0 right-0 mt-2 rounded-xl glass-luxury border border-foreground/10 dark:border-white/10 shadow-2xl p-1.5 z-30 max-h-60 overflow-y-auto"
+            className="absolute top-[100%] left-0 right-0 mt-2 rounded-xl bg-white dark:bg-[#121212] border border-foreground/10 dark:border-white/10 shadow-2xl p-1.5 z-50 max-h-60 overflow-y-auto"
           >
             {options.map((option) => (
               <button
@@ -67,10 +67,10 @@ function CustomDropdown({ label, value, options, onChange }: CustomDropdownProps
                 className={`w-full text-left px-3 py-2.5 text-sm rounded-lg transition-all duration-150 flex items-center justify-between cursor-pointer
                   ${value === option 
                     ? 'bg-primary/10 text-primary font-semibold' 
-                    : 'text-foreground hover:bg-primary/8 hover:text-primary'
+                    : 'text-zinc-800 dark:text-zinc-200 hover:bg-primary/5 dark:hover:bg-primary/10 hover:text-primary'
                   }`}
               >
-                <span>{option}</span>
+                <span className="font-medium">{option}</span>
                 {value === option && (
                   <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                 )}
@@ -259,8 +259,8 @@ export default function GeneratorPage() {
     <div className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 font-sans grid grid-cols-1 lg:grid-cols-12 gap-10">
       
       {/* Left panel - Form settings */}
-      <div className="lg:col-span-4 space-y-6">
-        <div className="p-6 rounded-2xl glass-luxury border flex flex-col gap-5">
+      <div className="lg:col-span-4 space-y-6 overflow-visible">
+        <div className="p-6 rounded-2xl glass-luxury border flex flex-col gap-5 overflow-visible">
           <div className="flex items-center gap-2 border-b border-foreground/5 pb-3">
             <Sliders className="w-5 h-5 text-primary" />
             <h2 className="text-xl font-bold tracking-wide">Design Configuration</h2>

@@ -129,6 +129,7 @@ export interface IDatabase {
   // Subscriptions & Transactions
   getSubscriptions(userId?: string): Promise<Subscription[]>;
   createSubscription(sub: Omit<Subscription, 'id'>): Promise<Subscription>;
+  updateSubscriptionStatus(id: string, status: 'active' | 'inactive'): Promise<Subscription | null>;
   getTransactions(userId?: string): Promise<Transaction[]>;
   createTransaction(tx: Omit<Transaction, 'id' | 'date'>): Promise<Transaction>;
 
@@ -361,6 +362,196 @@ class MockDatabase implements IDatabase {
         originalImageUrl: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=600&fit=crop',
         generatedImageUrl: 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?q=80&w=600&fit=crop',
         promptSuggestions: 'Floating white oak bed frames, neutral beige textured linen curtains, round paper globe ceiling light, and light ash wood nightstands.'
+      },
+      {
+        name: 'Modern Sleek Living Room',
+        userId: 'user-uid',
+        style: 'Modern',
+        budget: '$5,000 - $10,000',
+        roomType: 'Living Room',
+        originalImageUrl: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?q=80&w=600&fit=crop',
+        generatedImageUrl: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?q=80&w=600&fit=crop',
+        promptSuggestions: 'Low-profile marble tables, linear recessed spot fixtures, micro-cement floor plaster, and premium off-white boucle sectional seating.'
+      },
+      {
+        name: 'Modern Minimalist Bedroom',
+        userId: 'admin-uid',
+        style: 'Modern',
+        budget: '$2,000 - $5,000',
+        roomType: 'Bedroom',
+        originalImageUrl: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=600&fit=crop',
+        generatedImageUrl: 'https://images.unsplash.com/photo-1582719508461-905c673771fd?q=80&w=600&fit=crop',
+        promptSuggestions: 'Platform bed with walnut grain panels, integrated warm headboard lighting, hidden wardrobes, and abstract framed art canvas.'
+      },
+      {
+        name: 'Modern Smart Kitchen',
+        userId: 'user-uid',
+        style: 'Modern',
+        budget: '$10,000+',
+        roomType: 'Kitchen',
+        originalImageUrl: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=600&fit=crop',
+        generatedImageUrl: 'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?q=80&w=600&fit=crop',
+        promptSuggestions: 'Handleless black wood veneers, dynamic white quartzite island bar, flush ceiling extraction fan, and integrated app-controlled ambient strip lights.'
+      },
+      {
+        name: 'Modern Spa Bathroom',
+        userId: 'admin-uid',
+        style: 'Modern',
+        budget: '$5,000 - $10,000',
+        roomType: 'Bathroom',
+        originalImageUrl: 'https://images.unsplash.com/photo-1620626011761-996317b8d101?q=80&w=600&fit=crop',
+        generatedImageUrl: 'https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?q=80&w=600&fit=crop',
+        promptSuggestions: 'Double floating vanities, circular backlit mirror, frameless glass rain shower, and dark gray slate wall cladding.'
+      },
+      {
+        name: 'Modern Corner Office',
+        userId: 'user-uid',
+        style: 'Modern',
+        budget: 'Under $2,000',
+        roomType: 'Office',
+        originalImageUrl: 'https://images.unsplash.com/photo-1524758631624-e2822e304c36?q=80&w=600&fit=crop',
+        generatedImageUrl: 'https://images.unsplash.com/photo-1507652313519-d4e9174996dd?q=80&w=600&fit=crop',
+        promptSuggestions: 'Tempered glass computer desks, clean ergonomic workspace organization, floating oak wall led shelves, and cozy reading zone corner armchairs.'
+      },
+      {
+        name: 'Modern Urban Apartment',
+        userId: 'admin-uid',
+        style: 'Modern',
+        budget: '$5,000 - $10,000',
+        roomType: 'Apartment',
+        originalImageUrl: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?q=80&w=600&fit=crop',
+        generatedImageUrl: 'https://images.unsplash.com/photo-1560185127-6a2806647f81?q=80&w=600&fit=crop',
+        promptSuggestions: 'Cohesive layout mapping open study area and lounge partitions, light oak custom cabinetry, and tall floor-to-ceiling cream linen drapes.'
+      },
+      {
+        name: 'Modern Glass House Plan',
+        userId: 'user-uid',
+        style: 'Modern',
+        budget: '$10,000+',
+        roomType: 'Full House',
+        originalImageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=600&fit=crop',
+        generatedImageUrl: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?q=80&w=600&fit=crop',
+        promptSuggestions: 'Architectural structural staging, seamless floor-to-ceiling glass panel facades, exterior dynamic spotlight accents, and premium matching pool terrace flooring.'
+      },
+      {
+        name: 'Scandinavian Bright Kitchen',
+        userId: 'user-uid',
+        style: 'Scandinavian',
+        budget: '$5,000 - $10,000',
+        roomType: 'Kitchen',
+        originalImageUrl: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=600&fit=crop',
+        generatedImageUrl: 'https://images.unsplash.com/photo-1600585154526-990dced4db0d?q=80&w=600&fit=crop',
+        promptSuggestions: 'Light ash wood cabinetry, white stone kitchen countertops, minimalist open shelves, and high ceilings with natural pendant fixtures.'
+      },
+      {
+        name: 'Japanese Zen Bedroom',
+        userId: 'admin-uid',
+        style: 'Japanese',
+        budget: 'Under $2,000',
+        roomType: 'Bedroom',
+        originalImageUrl: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=600&fit=crop',
+        generatedImageUrl: 'https://images.unsplash.com/photo-1616046229478-9901c5536a45?q=80&w=600&fit=crop',
+        promptSuggestions: 'Tatami floor mats, low oak platforms, minimal rice paper screens, warm accent ceiling spotlights, and potted bonsai plants.'
+      },
+      {
+        name: 'Japanese Minimalist Kitchen',
+        userId: 'user-uid',
+        style: 'Japanese',
+        budget: '$5,000 - $10,000',
+        roomType: 'Kitchen',
+        originalImageUrl: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=600&fit=crop',
+        generatedImageUrl: 'https://images.unsplash.com/photo-1556912173-3bb406ef7e77?q=80&w=600&fit=crop',
+        promptSuggestions: 'Light cedar cabinet finishes, built-in hidden storage panels, neutral stone sink setups, and minimalist dining bars.'
+      },
+      {
+        name: 'Industrial Luxury Living Room',
+        userId: 'admin-uid',
+        style: 'Industrial',
+        budget: '$10,000+',
+        roomType: 'Living Room',
+        originalImageUrl: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=600&fit=crop',
+        generatedImageUrl: 'https://images.unsplash.com/photo-1536376072261-38c75010e6c9?q=80&w=600&fit=crop',
+        promptSuggestions: 'Exposed structural concrete support beams, dark brick accent wall textures, cognac leather sofa sets, and custom architectural pendant track lights.'
+      },
+      {
+        name: 'Minimalist Serenity Bathroom',
+        userId: 'user-uid',
+        style: 'Minimalist',
+        budget: '$2,000 - $5,000',
+        roomType: 'Bathroom',
+        originalImageUrl: 'https://images.unsplash.com/photo-1620626011761-996317b8d101?q=80&w=600&fit=crop',
+        generatedImageUrl: 'https://images.unsplash.com/photo-1615876234886-fd9a39fda97f?q=80&w=600&fit=crop',
+        promptSuggestions: 'Simple seamless white micro-cement floors, floating shelf vanities, hidden toilet plumbing designs, and simple round wall mirrors.'
+      },
+      {
+        name: 'Bohemian Artistic Living Room',
+        userId: 'admin-uid',
+        style: 'Bohemian',
+        budget: 'Under $2,000',
+        roomType: 'Living Room',
+        originalImageUrl: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?q=80&w=600&fit=crop',
+        generatedImageUrl: 'https://images.unsplash.com/photo-1581428982868-e410dd047a90?q=80&w=600&fit=crop',
+        promptSuggestions: 'Woven macramé wall fixtures, colorful Moroccan area rugs, layered linen throws, and potted hanging ferns.'
+      },
+      {
+        name: 'Contemporary Luxury Bedroom',
+        userId: 'user-uid',
+        style: 'Contemporary',
+        budget: '$10,000+',
+        roomType: 'Bedroom',
+        originalImageUrl: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=600&fit=crop',
+        generatedImageUrl: 'https://images.unsplash.com/photo-1616594039964-ae9021a400a0?q=80&w=600&fit=crop',
+        promptSuggestions: 'High headboards upholstered in charcoal velvet, built-in bedside luxury brass light switches, custom room divider drapes, and rich oak floorboards.'
+      },
+      {
+        name: 'Japanese Zen Full House',
+        userId: 'admin-uid',
+        style: 'Japanese',
+        budget: '$10,000+',
+        roomType: 'Full House',
+        originalImageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=600&fit=crop',
+        generatedImageUrl: 'https://images.unsplash.com/photo-1616046229478-9901c5536a45?q=80&w=600&fit=crop',
+        promptSuggestions: 'Shoji wall dividers throughout the corridors, low-profile dining tables, warm cedar wood trim columns, and minimalist bamboo garden view portals.'
+      },
+      {
+        name: 'Scandinavian Cozy Office',
+        userId: 'user-uid',
+        style: 'Scandinavian',
+        budget: 'Under $2,000',
+        roomType: 'Office',
+        originalImageUrl: 'https://images.unsplash.com/photo-1524758631624-e2822e304c36?q=80&w=600&fit=crop',
+        generatedImageUrl: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?q=80&w=600&fit=crop',
+        promptSuggestions: 'White oak study tables, cozy sheepskin throw armchairs, minimalist warm gray drawers, and olive leaf desk planters.'
+      },
+      {
+        name: 'Industrial Outdoor Lounge',
+        userId: 'admin-uid',
+        style: 'Industrial',
+        budget: '$2,000 - $5,000',
+        roomType: 'Outdoor',
+        originalImageUrl: 'https://images.unsplash.com/photo-1507089947368-19c1da9775ae?q=80&w=600&fit=crop',
+        generatedImageUrl: 'https://images.unsplash.com/photo-1534349762230-e0cadf78f5da?q=80&w=600&fit=crop',
+        promptSuggestions: 'Powder-coated metal lounge frames, concrete fire pits, warm vintage bistro string lights, and vertical weathered wood fences.'
+      },
+      {
+        name: 'Contemporary Minimalist Apartment',
+        userId: 'user-uid',
+        style: 'Contemporary',
+        budget: '$5,000 - $10,000',
+        roomType: 'Apartment',
+        originalImageUrl: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?q=80&w=600&fit=crop',
+        generatedImageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=600&fit=crop',
+        promptSuggestions: 'Light greige color theme wraps, sleek handle-less cabinets, warm concealed shelf LED strips, and minimalist floating tv consoles.'
+      },
+      {
+        name: 'Bohemian Style Bathroom',
+        userId: 'admin-uid',
+        style: 'Bohemian',
+        budget: 'Under $2,000',
+        roomType: 'Bathroom',
+        originalImageUrl: 'https://images.unsplash.com/photo-1620626011761-996317b8d101?q=80&w=600&fit=crop',
+        generatedImageUrl: 'https://images.unsplash.com/photo-1604014237800-1c9102c219da?q=80&w=600&fit=crop',
+        promptSuggestions: 'Patterned terracotta ceramic tiling, woven wicker laundry bins, small hanging pothos plants, and natural wood shelf frames.'
       }
     ];
 
@@ -1120,6 +1311,19 @@ class MockDatabase implements IDatabase {
     }
     return newSub;
   }
+  async updateSubscriptionStatus(id: string, status: 'active' | 'inactive'): Promise<Subscription | null> {
+    const sub = this.subscriptions.find(s => s.id === id);
+    if (sub) {
+      sub.status = status;
+      const user = this.users.get(sub.userId);
+      if (user) {
+        user.subscription = { plan: sub.plan, status: status, currentPeriodEnd: sub.endAt };
+        this.users.set(user.uid, user);
+      }
+      return sub;
+    }
+    return null;
+  }
   async getTransactions(userId?: string): Promise<Transaction[]> {
     return userId ? this.transactions.filter(t => t.userId === userId) : this.transactions;
   }
@@ -1208,29 +1412,32 @@ class MockDatabase implements IDatabase {
 
 // Global service export
 let databaseService: IDatabase;
+let FirebaseDatabaseClass: any;
 
 const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 
 if (!serviceAccountEnv || serviceAccountEnv.trim() === '') {
-  throw new Error(
-    'CRITICAL CONFIGURATION ERROR: FIREBASE_SERVICE_ACCOUNT_KEY environment variable is missing or empty. ' +
-    'The server requires a real Firebase connection to operate. Mock Database is disabled.'
+  console.warn(
+    'WARNING: FIREBASE_SERVICE_ACCOUNT_KEY environment variable is missing or empty. ' +
+    'Falling back to Mock Database (In-Memory Development Mode).'
   );
-}
-
-let FirebaseDatabaseClass: any;
-
-try {
-  const serviceAccount = JSON.parse(serviceAccountEnv);
-  if (admin.apps.length === 0) {
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-    });
-  }
-  
-  const firestore = admin.firestore();
-  firestore.settings({ ignoreUndefinedProperties: true });
+  databaseService = new MockDatabase();
+  FirebaseDatabaseClass = MockDatabase;
+} else {
+  try {
+    const serviceAccount = JSON.parse(serviceAccountEnv);
+    if (serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    }
+    if (admin.apps.length === 0) {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+      });
+    }
+    
+    const firestore = admin.firestore();
+    firestore.settings({ ignoreUndefinedProperties: true });
 
   // Firebase Admin Firestore DB Implementation
   class FirebaseDatabase implements IDatabase {
@@ -1342,6 +1549,20 @@ try {
       });
       return data;
     }
+    async updateSubscriptionStatus(id: string, status: 'active' | 'inactive'): Promise<Subscription | null> {
+      const docRef = firestore.collection('subscriptions').doc(id);
+      const snap = await docRef.get();
+      if (!snap.exists) return null;
+      const sub = snap.data() as Subscription;
+      sub.status = status;
+      await docRef.update({ status });
+      await firestore.collection('users').doc(sub.userId).update({
+        'subscription.status': status,
+        'subscription.plan': sub.plan,
+        'subscription.currentPeriodEnd': sub.endAt
+      });
+      return sub;
+    }
     async getTransactions(userId?: string): Promise<Transaction[]> {
       let query: admin.firestore.Query = firestore.collection('transactions');
       if (userId) {
@@ -1444,12 +1665,14 @@ try {
     }
   }
 
-  databaseService = new FirebaseDatabase();
-  FirebaseDatabaseClass = FirebaseDatabase;
-  console.log('DecorAI initialized with real Firebase (Live Mode).');
-} catch (error) {
-  console.error('Firebase Admin init failed. Could not start server.', error);
-  throw error;
+    databaseService = new FirebaseDatabase();
+    FirebaseDatabaseClass = FirebaseDatabase;
+    console.log('DecorAI initialized with real Firebase (Live Mode).');
+  } catch (error) {
+    console.error('Firebase Admin init failed. Falling back to Mock Database.', error);
+    databaseService = new MockDatabase();
+    FirebaseDatabaseClass = MockDatabase;
+  }
 }
 
 export { databaseService, MockDatabase, FirebaseDatabaseClass };

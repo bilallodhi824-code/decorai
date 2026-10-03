@@ -13,7 +13,8 @@
     "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
     "build:frontend": "npm run build -w frontend",
     "build:backend": "npm run build -w backend",
-    "build": "npm run build -w backend && npm run build -w frontend"
+    "build": "npm run build -w backend && npm run build -w frontend",
+    "start": "concurrently \"npm run start -w frontend\" \"npm run start -w backend\""
   },
   "devDependencies": {
     "@firebase/util": "^1.15.1",

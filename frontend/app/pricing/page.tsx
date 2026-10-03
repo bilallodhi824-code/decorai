@@ -61,6 +61,14 @@ export default function PricingPage() {
     }
   ];
 
+  const [checkoutPlan, setCheckoutPlan] = useState<string | null>(null);
+  const [cardholderName, setCardholderName] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [cvv, setCvv] = useState('');
+  const [submittingPayment, setSubmittingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+
   const handleSubscribe = async (planId: string) => {
     if (!user) {
       router.push('/login');
@@ -72,20 +80,44 @@ export default function PricingPage() {
       return;
     }
 
-    setLoadingPlan(planId);
+    setCheckoutPlan(planId);
+    setPaymentError(null);
+  };
+
+  const handleProcessCheckout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!checkoutPlan) return;
+    if (!cardholderName.trim() || !cardNumber.trim() || !expiryDate.trim() || !cvv.trim()) {
+      setPaymentError('All payment fields are required.');
+      return;
+    }
+
+    setSubmittingPayment(true);
+    setPaymentError(null);
+
     try {
       await apiPost('/checkout', {
-        plan: planId,
-        billingCycle
+        plan: checkoutPlan,
+        billingCycle,
+        cardholderName,
+        cardNumber,
+        expiryDate,
+        cvv
       });
 
       await syncProfile();
-      setShowCheckoutSuccess(planId);
-    } catch (err) {
+      setShowCheckoutSuccess(checkoutPlan);
+      setCheckoutPlan(null);
+      // Reset payment fields
+      setCardholderName('');
+      setCardNumber('');
+      setExpiryDate('');
+      setCvv('');
+    } catch (err: any) {
       console.error('Checkout simulator error:', err);
-      alert('Checkout failed. Please ensure the backend server is running on port 5000.');
+      setPaymentError(err.message || 'Payment simulation failed. Please make sure the backend is running.');
     } finally {
-      setLoadingPlan(null);
+      setSubmittingPayment(false);
     }
   };
 
@@ -204,7 +236,7 @@ export default function PricingPage() {
               <motion.button
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleSubscribe(plan.id)}
-                disabled={loadingPlan !== null || isActive}
+                disabled={isActive}
                 className={`w-full mt-10 py-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all duration-300 ${
                   isActive
                     ? 'bg-success/10 text-success border border-success/30 cursor-default'
@@ -213,11 +245,7 @@ export default function PricingPage() {
                       : 'bg-secondary/5 dark:bg-white/5 border border-foreground/10 text-foreground hover:border-primary'
                 }`}
               >
-                {loadingPlan === plan.id ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" /> Simulating Checkout...
-                  </>
-                ) : isActive ? (
+                {isActive ? (
                   'Active Plan'
                 ) : plan.id === 'free' ? (
                   'Get Started'
@@ -230,6 +258,114 @@ export default function PricingPage() {
           );
         })}
       </motion.div>
+
+      {/* PAYMENT METHOD MODAL */}
+      <AnimatePresence>
+        {checkoutPlan && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setCheckoutPlan(null)}
+              className="fixed inset-0 bg-black z-50 cursor-pointer"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 30 }}
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md p-6 rounded-3xl bg-background border border-primary/20 shadow-2xl z-50 space-y-5"
+            >
+              <div>
+                <h3 className="text-xl font-bold font-playfair text-foreground">Secure Payment Checkout</h3>
+                <p className="text-xs text-foreground/60 mt-1">Upgrade request for DecorAI {checkoutPlan.toUpperCase()} ({billingCycle})</p>
+              </div>
+
+              <form onSubmit={handleProcessCheckout} className="space-y-4 text-sm">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-foreground/75">Cardholder Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="John Doe"
+                    value={cardholderName}
+                    onChange={(e) => setCardholderName(e.target.value)}
+                    className="w-full bg-secondary/5 dark:bg-white/5 border border-foreground/10 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-primary text-foreground text-xs"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-foreground/75">Card Number</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={19}
+                    placeholder="1234 5678 1234 5678"
+                    value={cardNumber}
+                    onChange={(e) => setCardNumber(e.target.value)}
+                    className="w-full bg-secondary/5 dark:bg-white/5 border border-foreground/10 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-primary text-foreground text-xs"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-foreground/75">Expiry Date</label>
+                    <input
+                      type="text"
+                      required
+                      maxLength={5}
+                      placeholder="MM/YY"
+                      value={expiryDate}
+                      onChange={(e) => setExpiryDate(e.target.value)}
+                      className="w-full bg-secondary/5 dark:bg-white/5 border border-foreground/10 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-primary text-foreground text-xs"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-foreground/75">CVV / CVC</label>
+                    <input
+                      type="password"
+                      required
+                      maxLength={4}
+                      placeholder="•••"
+                      value={cvv}
+                      onChange={(e) => setCvv(e.target.value)}
+                      className="w-full bg-secondary/5 dark:bg-white/5 border border-foreground/10 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-primary text-foreground text-xs"
+                    />
+                  </div>
+                </div>
+
+                {paymentError && (
+                  <div className="p-3 rounded-xl bg-danger/10 border border-danger/20 text-xs text-danger">
+                    {paymentError}
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setCheckoutPlan(null)}
+                    className="flex-1 py-3 bg-secondary/5 border border-foreground/10 text-foreground text-xs font-semibold rounded-xl cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingPayment}
+                    className="flex-1 py-3 bg-primary text-white text-xs font-bold rounded-xl shadow-md cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    {submittingPayment ? (
+                      <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Processing...</>
+                    ) : (
+                      'Pay & Request'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* CHECKOUT SUCCESS MODAL */}
       <AnimatePresence>
@@ -252,13 +388,13 @@ export default function PricingPage() {
                 <Award className="w-8 h-8" />
               </div>
               <div className="space-y-2">
-                <h3 className="text-2xl font-bold font-playfair">Subscription Activated!</h3>
+                <h3 className="text-2xl font-bold font-playfair">Activation Pending!</h3>
                 <p className="text-sm text-foreground/65">
-                  Thank you! You are now subscribed to the DecorAI **{showCheckoutSuccess.toUpperCase()}** plan.
+                  Thank you! Your payment request for DecorAI **{showCheckoutSuccess.toUpperCase()}** has been submitted.
                 </p>
               </div>
               <div className="p-4 rounded-xl bg-secondary/5 dark:bg-white/5 text-xs text-foreground/60 leading-relaxed border">
-                Your payment was processed successfully through our checkout simulator. You can now download HD renders.
+                Your subscription is currently pending administrator approval. It will become active once approved by the admin team.
               </div>
               <div className="flex gap-3">
                 <button
