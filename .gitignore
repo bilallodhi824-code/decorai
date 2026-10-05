@@ -36,3 +36,7 @@ Thumbs.db
 desktop.ini
 
 .vercel
+.env*
+
+# Local Netlify folder
+.netlify
